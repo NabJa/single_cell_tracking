@@ -2,8 +2,8 @@
 
 To be implemented:
 
-* [ ]  SSD detection model loading, inference
-* [ ]  Faster R-CNN model loading, inference
+* [x]  SSD detection model loading, inference
+* [x]  Faster R-CNN model loading, inference
 * [ ]  MLT tracking
 * [ ]  TrackMate integration
 * [ ]  Benchmarking of tracking methods
