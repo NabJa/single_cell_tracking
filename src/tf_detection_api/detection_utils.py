@@ -6,7 +6,7 @@ import io
 from pathlib import Path
 import tensorflow as tf
 import numpy as np
-import bbox_utils as box
+import src.utils.bbox_utils as box
 from PIL import Image
 
 
