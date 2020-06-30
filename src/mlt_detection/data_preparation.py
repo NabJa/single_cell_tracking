@@ -68,7 +68,9 @@ def add_kernel(img, k, x, y):
 
 def generate_gaussian_mask(img, pos, sigma=8, kernel_size=30):
     """Apply gaussian kernel on all positions pos in image img"""
-    kernel = gaussian_kernel((kernel_size, kernel_size), sigma, 1)
+    if type(kernel_size) is int:
+        kernel_size = (kernel_size, kernel_size)
+    kernel = gaussian_kernel(kernel_size, sigma, 1)
     for x, y in pos:
         x, y = int(round(x, 0)), int(round(y, 0))
         img = add_kernel(img, kernel, x, y)
