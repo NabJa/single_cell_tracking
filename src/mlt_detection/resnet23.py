@@ -4,6 +4,7 @@ Rempfler, Markus, et al. "Cell lineage tracing in lens-free microscopy videos." 
 """
 
 import logging
+import numpy as np
 from keras.losses import binary_crossentropy
 from keras.optimizers import adam
 from keras.layers import Input, Conv2D, BatchNormalization,\
@@ -173,5 +174,15 @@ class ResNet23:
                                         **kwargs)
 
     def predict(self, img, **kwargs):
-        out = self.model.predict(img, **kwargs)
+        """Transform image img and predict."""
+        if len(img.shape) == 2:
+            inp_img = np.repeat(img[..., np.newaxis], 3, axis=2)
+            inp_img = inp_img[np.newaxis, ...]
+        elif len(img.shape) == 3:
+            inp_img = img[np.newaxis, ...]
+        elif len(img.shape) == 4:
+            inp_img = img
+        else:
+            raise ValueError(f"Invalid image dimension {img.shape}. Must be (W, H), (W, H, C) or (B, W, H, C)")
+        out = self.model.predict(inp_img, **kwargs)
         return out[0, ..., 0]
