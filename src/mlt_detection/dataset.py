@@ -54,9 +54,11 @@ class Dataset:
 
         images, pmaps = [], []
         for img, pm in zip(self.train_images, self.train_prob_maps):
-            image, pmap = cv2.imread(str(img)), cv2.imread(str(pm))
+            image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
+            if len(image.shape) == 2:
+                image = np.repeat(image[..., np.newaxis], 3, axis=2) # Input must be of shape (None, W, H, 3)
             images.append(image)
-            pmaps.append(pmap)
+            pmaps.append(pmap[..., np.newaxis])  # Target must be of shape (None, W, H, 1)
             if (len(images) == batch_size) and (len(pmaps) == batch_size):
                 yield np.array(images), np.array(pmaps)
                 images, pmaps = [], []
@@ -68,9 +70,11 @@ class Dataset:
 
         images, pmaps = [], []
         for img, pm in zip(self.val_images, self.val_prob_maps):
-            image, pmap = cv2.imread(str(img)), cv2.imread(str(pm))
+            image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
+            if len(image.shape) == 2:
+                image = np.repeat(image[..., np.newaxis], 3, axis=2)
             images.append(image)
-            pmaps.append(pmap)
+            pmaps.append(pmap[..., np.newaxis])
             if (len(images) == batch_size) and (len(pmaps) == batch_size):
                 yield np.array(images), np.array(pmaps)
                 images, pmaps = [], []
@@ -97,8 +101,8 @@ class Dataset:
         train_ids = list(set(ids) - set(val_ids))
         self.train_images = self.images[train_ids]
         self.train_prob_maps = self.prob_maps[train_ids]
-        self.val_prob_maps = self.images[val_ids]
         self.val_images = self.images[val_ids]
+        self.val_prob_maps = self.prob_maps[val_ids]
         self.train_ids = train_ids
         self.val_ids = val_ids
         return train_ids, val_ids
