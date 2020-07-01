@@ -2,6 +2,8 @@
 Implementation of ResNet-23 to generate a single cell probability map as in:
 Rempfler, Markus, et al. "Cell lineage tracing in lens-free microscopy videos." 2017
 """
+
+import logging
 from keras.losses import binary_crossentropy
 from keras.optimizers import adam
 from keras.layers import Input, Conv2D, BatchNormalization,\
@@ -139,7 +141,7 @@ def build_model(input_shape=(224, 224, 3), classes=1, training=True):
     x = Dropout(rate=0.5)(x) if training else x
     outputs = Conv2DTranspose(classes, (8, 8), strides=(8, 8), activation="sigmoid")(x)
 
-    model = Model(inputs=inputs, outputs=outputs)
+    model = Model(inputs=inputs, outputs=outputs, name="ResNet23")
     return model
 
 
@@ -151,11 +153,25 @@ class ResNet23:
         self.classes = classes
         self.image_shape = image_shape
         self.model = build_model(image_shape, classes, training)
+        self.compiled = False
         self.weights_path = None
 
     def load_weights(self, weights_path):
         self.weights_path = weights_path
         self.model.load_weights(str(weights_path))
 
-    def train(self):
-        self.model.compile(optimizer=adam, loss=binary_crossentropy, metrics=["accuracy"])
+    def compile(self, optimizer=adam(learning_rate=0.02), loss=binary_crossentropy, **kwargs):
+        self.model.compile(optimizer=optimizer, loss=loss, **kwargs)
+        self.compiled = True
+
+    def train(self, train, val, **kwargs):
+        if not self.compiled:
+            logging.warning("Model not compiled. Autocompiling!")
+            self.compile()
+        return self.model.fit_generator(generator=train,
+                                        validation_data=val,
+                                        **kwargs)
+
+    def predict(self, img, **kwargs):
+        out = self.model.predict(img, **kwargs)
+        return out[0, ..., 0]
