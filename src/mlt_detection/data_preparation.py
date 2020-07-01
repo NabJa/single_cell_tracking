@@ -11,6 +11,17 @@ from src.tf_detection_api.detection_utils import tf_dataset_generator
 from src.utils.bbox_utils import boxes_to_center_points
 
 
+ANNOTATION_FOLDER_STRUCTURE = """
+main_path
+    -> cell_type_x
+        -> experiment_id
+            -> pattern
+        -> experiment_id
+        -> ...
+    -> ...
+"""
+
+
 def gaussian_kernel(filter_size, sigma, mean):
     kx = cv2.getGaussianKernel(filter_size[0], sigma)
     ky = cv2.getGaussianKernel(filter_size[1], sigma)
@@ -86,11 +97,9 @@ def record_to_probability_map(record, sigma=8, kernel_size=30, crop_shape=None):
         prob_map = np.zeros_like(img, dtype=np.float32)
         prob_map = generate_gaussian_mask(prob_map, img_cords, sigma=sigma, kernel_size=kernel_size)
 
-        if not (crop_shape is None):
-            pm_crops, coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
-            crops, _ = crop_image_with_positions(img, img_cords, crop_shape)
-            yield img, img_cords, prob_map, crops, pm_crops, coords
-        yield img, img_cords, prob_map
+        pm_crops, coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
+        crops, _ = crop_image_with_positions(img, img_cords, crop_shape)
+        yield img, img_cords, prob_map, crops, pm_crops, coords
 
 
 def crop_image_with_positions(img, pos, crop_shape):
@@ -145,8 +154,8 @@ def transform_annotation(record, output):
 
         # Save original image, coordinates and probility map
         image, coordinates, probability_map = transformed[0], transformed[1], transformed[2]
-        cv2.imwrite(str(out_path / "original_image.png"), image)
-        cv2.imwrite(str(out_path / "original_pm.png"), probability_map * 255)
+        cv2.imwrite(str(out_path / "original_image.tif"), image)
+        cv2.imwrite(str(out_path / "original_pm.tif"), probability_map * 255)
         np.save(str(out_path / "coordinates.npy"), coordinates)
 
         # CROP IMAGES
@@ -156,8 +165,8 @@ def transform_annotation(record, output):
 
         # Save crops and coordinates
         for j, (crop, pm_crop, cord) in enumerate(zip(*transformed[3:])):
-            cv2.imwrite(str(crops_path / f"{j}_lf.png"), crop)
-            cv2.imwrite(str(crops_path / f"{j}_pm.png"), pm_crop * 255)
+            cv2.imwrite(str(crops_path / f"{j}_lf.tif"), crop)
+            cv2.imwrite(str(crops_path / f"{j}_pm.tif"), pm_crop * 255)
             np.save(str(crops_path / f"{j}_crop_coordinates.npy"), cord)
 
 
@@ -181,14 +190,13 @@ def transform_all_annotations(main_path, pattern, output):
 
     for i, dataset in enumerate(datasets):
         print(f"Transforming dataset {i}/{len(datasets)}: {dataset}", end="\r")
-        _, _, _, crops, pm_crops, coords = record_to_probability_map(dataset, crop_shape=(224, 224))
-
-        for j, (cr, pm, co) in enumerate(zip(crops, pm_crops, coords)):
-            crop_path = output/dataset.parent.name/f"crop_{j}"
-            crop_path.mkdir()
-            cv2.imwrite(str(crop_path / "prob_map.png"), pm)
-            cv2.imwrite(str(crop_path/"image.png"), cr)
-            np.save(str(crop_path/"coordinates.npy"), co)
+        for j, (_, _, _, crops, pm_crops, coords) in enumerate(record_to_probability_map(dataset, crop_shape=(224, 224))):
+            for k, (cr, pm, co) in enumerate(zip(crops, pm_crops, coords)):
+                crop_path = output/dataset.parent.name/f"image{j}_crop{k}"
+                crop_path.mkdir(parents=True)
+                cv2.imwrite(str(crop_path / "prob_map.tif"), pm)
+                cv2.imwrite(str(crop_path/"image.tif"), cr)
+                np.save(str(crop_path/"coordinates.npy"), co)
 
 
 def _file_path(x):
@@ -219,17 +227,28 @@ if __name__ == '__main__':
     # parser.add_argument("-c", "--coordinates", type=_path)
     parser.add_argument("-t", "--tf_record", type=_file_path,
                         help="tf_record file containing the fields: image, bboxes")
-    parser.add_argument("-d", "--data", type=_file_path,
-                        help=f"Dataset with data structure described in {transform_all_annotations.__doc__}")
-    parser.add_argument("-o", "--output", type=_path, required=True,
+    parser.add_argument("-d", "--data", type=_dir_path,
+                        help=f"Dataset with dataset structure as described in ANNOTATION_FOLDER_STRUCTURE. Call "
+                             f"--struct for description.")
+    parser.add_argument("-p", "--pattern", type=str,
+                        help="Glob pattern of data data to search for (e.g. lensfree.tfrecord).")
+    parser.add_argument("-o", "--output", type=_dir_path,
                         help="Output path")
+    parser.add_argument("--struct", action='store_true')
     args = parser.parse_args()
 
-    if args.tf_record is not None:
+    if args.struct:
+        print(ANNOTATION_FOLDER_STRUCTURE)
+        exit()
+    elif args.output is None:
+        raise ValueError("Invalid arguments. --output is required!")
+    elif args.tf_record is not None:
         transform_annotation(args.tf_record, args.output)
         exit()
     elif args.data is not None:
-        transform_all_annotations(args.data, args.output)
+        if args.pattern is None:
+            raise ValueError("Pattern required! ")
+        transform_all_annotations(args.data, args.pattern, args.output)
         exit()
     else:
         raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record")
