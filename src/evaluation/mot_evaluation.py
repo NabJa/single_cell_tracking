@@ -50,3 +50,13 @@ def sparse_rows_to_original(s, original_shape, row_with_content, fill=-1):
             idx = row_idx[i] - 1
             res[i, ...] = s[idx]
     return res
+
+
+class MOTEvaluator:
+    """Evaluation of Multiple Object Tracking."""
+
+    def __init__(self, groundtruth, hypotheses, distance_threshold):
+        self.groundtruth = groundtruth
+        self.hypotheses = hypotheses
+        self.distance_threshold = distance_threshold
+        self.munkres_default = -1
