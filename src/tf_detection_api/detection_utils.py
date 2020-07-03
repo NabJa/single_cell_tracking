@@ -4,10 +4,52 @@ Utils to load and predict with a object detection model bubild with the tensorfl
 
 import io
 from pathlib import Path
+import logging
 import tensorflow as tf
 import numpy as np
 import src.utils.bbox_utils as box
 from PIL import Image
+import cv2
+import pickle
+
+
+def save_predictions(image_dir, out_dir, model_dir, verbose=False):
+    """Save pickled predictions of all images in image_dir."""
+
+    model = load_model(model_dir)
+    image_paths = list(Path(image_dir).glob("*.png"))
+    generator = prediction_generator(image_paths, model)
+    predictions = {}
+    for i, prediction in enumerate(generator):
+        if verbose:
+            logging.info(f"Predicting on image {i}/{len(image_paths)}: {image_paths[i]}")
+        predictions[prediction["image_dir"]] = {
+            "detection_boxes": prediction["detection_boxes"],
+            "detection_scores": prediction["detection_scores"],
+            "num_detections": prediction["num_detections"]
+        }
+    target = out_dir/"predictions.p"
+    logging.info(f"Saved all prediction to: {target}")
+    pickle.dump(predictions, open(str(target), "wb"))
+
+
+def prediction_generator(image_paths, model):
+    """Yield prediction for every image in image_dir."""
+    index = 0
+    while index < len(image_paths):
+        image = cv2.imread(str(image_paths[index]), 1)
+        prediction = run_inference_for_single_image(model, image)
+
+        detected_boxes = prediction["detection_boxes"]
+
+        # Transform bboxes to image coordinates. Prediction is in yx1yx2 format.
+        img_height, img_width, *_ = image.shape
+        shape_matrix = np.array([img_height, img_width, img_height, img_width])
+        prediction["detection_boxes"] = detected_boxes * shape_matrix
+        prediction["image_dir"] = image_paths[index]
+
+        index += 1
+        yield prediction
 
 
 def load_model(model_path):
