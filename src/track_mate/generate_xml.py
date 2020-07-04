@@ -2,15 +2,10 @@
 Functions to transform predictions into TrackMate XML.
 """
 import argparse
-
-from os.path import join
 from pathlib import Path
-
 from collections import OrderedDict
-from glob import glob
 import pickle
 import numpy as np
-from tqdm import tqdm
 import xmltodict
 import cv2
 

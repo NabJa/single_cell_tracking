@@ -56,7 +56,7 @@ class Dataset:
         for img, pm in zip(self.train_images, self.train_prob_maps):
             image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
             if len(image.shape) == 2:
-                image = np.repeat(image[..., np.newaxis], 3, axis=2) # Input must be of shape (None, W, H, 3)
+                image = np.repeat(image[..., np.newaxis], 3, axis=2)  # Input must be of shape (None, W, H, 3)
             images.append(image)
             pmaps.append(pmap[..., np.newaxis])  # Target must be of shape (None, W, H, 1)
             if (len(images) == batch_size) and (len(pmaps) == batch_size):
