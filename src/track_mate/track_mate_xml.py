@@ -1,8 +1,5 @@
 """
 Base module to handle TrackMate XML file.
-
-TODO
- * Support easy transformation in custom data structure.
 """
 
 import xmltodict
@@ -60,6 +57,12 @@ class TrackMateXML:
                 self.spot_index[spot.id] = spot
             self.frames.append(frame)
 
+    def save_as_json(self, json_path=None):
+        if json_path is None:
+            json_path = self.xml_path.parent.joinpath(self.xml_path.stem + ".json")
+        json_dict = {frame.number: {spot.id: spot.to_dict() for spot in frame} for frame in self.frames}
+        json.dump(json_dict, open(str(json_path), "w"), sort_keys=True, indent=4)
+
 
 class Frame:
     def __init__(self, f):
@@ -87,6 +90,9 @@ class Spot:
         self.source = []
         self.target = []
 
+    def __str__(self):
+        return f"ID={self.id}, X={self.x}, Y={self.y}, Source={self.source}, Target={self.target}"
+
     def add_source(self, sid):
         if len(self.source) == 0:
             self.source.append(sid)
@@ -101,4 +107,11 @@ class Spot:
             raise ValueError(f"More then two target IDs in spot{self.id}."
                              f"Existing target: {self.target}. Trying to add: {tid}")
 
-# tm = TrackMateXML(r"D:\trackmate_to_json\tracks.xml")
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "x": self.x,
+            "y": self.y,
+            "source": self.source,
+            "target": self.target
+        }
