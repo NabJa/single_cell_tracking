@@ -60,9 +60,7 @@ class TrackMateXML:
     def save_as_json(self, json_path=None):
         if json_path is None:
             json_path = self.xml_path.parent.joinpath(self.xml_path.stem + ".json")
-        json_dict = {"Frames": {frame.number: {"Spots": {spot.id: spot.to_dict()
-                                                         for spot in frame}}
-                                for frame in self.frames}}
+        json_dict = {"Frames": [{spot.id: spot.to_dict() for spot in frame} for frame in self.frames]}
         json.dump(json_dict, open(str(json_path), "w"), sort_keys=True, indent=4)
 
 
@@ -89,21 +87,23 @@ class Spot:
         self.frame = int(s["@FRAME"])
         self.x = float(s["@POSITION_X"])
         self.y = float(s["@POSITION_Y"])
-        self.source = []
-        self.target = []
+        self.source = None
+        self.target = None
 
     def __str__(self):
         return f"ID={self.id}, X={self.x}, Y={self.y}, Source={self.source}, Target={self.target}"
 
     def add_source(self, sid):
-        if len(self.source) == 0:
-            self.source.append(sid)
+        if self.source is None:
+            self.source = sid
         else:
             raise ValueError(f"Multiple source IDs in spot: {self.id}."
                              f"Existing source: {self.source}. Trying to add: {sid}")
 
     def add_target(self, tid):
-        if len(self.source) < 2:
+        if self.target is None:
+            self.target = [tid]
+        elif len(self.target) == 1:
             self.target.append(tid)
         else:
             raise ValueError(f"More then two target IDs in spot{self.id}."
@@ -111,9 +111,9 @@ class Spot:
 
     def to_dict(self):
         return {
-            "id": self.id,
             "x": self.x,
             "y": self.y,
             "source": self.source,
-            "target": self.target
+            "target": self.target,
+            "frame": self.frame
         }
