@@ -113,7 +113,7 @@ def box_to_point(box, bbox_format="xy1xy2"):
     return xmin + x_offset, ymin + y_offset
 
 
-def point_to_box(point, size=30):
+def point_to_box(point, size=30, img_shape=(224, 224)):
     """Transform point (x, y) to fixed sized box (x1, y1, x2, y2)."""
     offset = size // 2
 
@@ -121,7 +121,10 @@ def point_to_box(point, size=30):
 
     x1 = px - offset if px - offset > 0 else 0
     y1 = py - offset if py - offset > 0 else 0
-    x2 = px + offset
-    y2 = py + offset
-
-    return (x1, y1, x2, y2)
+    if not (img_shape is None):
+        x2 = px + offset if px + offset < img_shape[1] else img_shape[1]
+        y2 = py + offset if py + offset < img_shape[0] else img_shape[0]
+    else:
+        x2 = px + offset
+        y2 = py + offset
+    return x1, y1, x2, y2

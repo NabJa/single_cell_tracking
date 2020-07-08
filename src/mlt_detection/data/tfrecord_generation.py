@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import cv2
 import tensorflow as tf
-from src.utils.bbox_utils import point_to_box
+from src.utils import bbox_utils as bu
 
 
 def record_from_resnet_data(inp, out=None, ignore=None):
@@ -20,7 +20,7 @@ def record_from_resnet_data(inp, out=None, ignore=None):
     img_path = [x for x in inp.rglob("image.tif") if len(set(ignore).intersection(set(x.parts))) < 1]
 
     coords = [np.load(c) for c in coord_path]
-    bboxes = [np.array([point_to_box(p, 40) for p in points]) for points in coords]
+    bboxes = [np.array([bu.point_to_box(p, 40, img_shape=(224, 224)) for p in points]) for points in coords]
 
     print(f"Writing record ...")
     write_tf_record(img_path, bboxes, out)
