@@ -97,15 +97,17 @@ def record_to_probability_map(record, sigma=8, kernel_size=30, crop_shape=None):
         prob_map = np.zeros_like(img, dtype=np.float32)
         prob_map = generate_gaussian_mask(prob_map, img_cords, sigma=sigma, kernel_size=kernel_size)
 
-        pm_crops, coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
         crops, _ = crop_image_with_positions(img, img_cords, crop_shape)
-        yield img, img_cords, prob_map, crops, pm_crops, coords
+        pm_crops, crop_coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
+
+        yield img, img_cords, prob_map, crops, pm_crops, crop_coords
 
 
 def crop_image_with_positions(img, pos, crop_shape):
-    """Crop image into max numver of crops crop_shape and recalculate positions pos"""
+    """Crop image into max number of crops crop_shape and recalculate positions (in xy format) pos"""
     ch, cw = (crop_shape, crop_shape) if type(crop_shape) is int else crop_shape
     ih, iw = img.shape
+    pos = pos[:, ::-1]  # xy-cordinates to yx coordinates
 
     rows = iw // cw
     cols = ih // ch
