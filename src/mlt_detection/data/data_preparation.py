@@ -223,10 +223,11 @@ def _path(x):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # TODO support other formats as input
-    # parser.add_argument("-i", "--image_path", type=_path)
-    # parser.add_argument("-c", "--coordinates", type=_path)
+    parser = argparse.ArgumentParser(usage="All arguments are optional."
+                                           "Combinations may be required depending on input format."
+                                           "For single tfrecord use: --tfrecord path"
+                                           "For data as in --struct, use: --data path --pattern patter.tfrecord")
+
     parser.add_argument("-t", "--tf_record", type=_file_path,
                         help="tf_record file containing the fields: image, bboxes")
     parser.add_argument("-d", "--data", type=_dir_path,
