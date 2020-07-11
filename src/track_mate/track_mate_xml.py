@@ -57,10 +57,13 @@ class TrackMateXML:
                 self.spot_index[spot.id] = spot
             self.frames.append(frame)
 
+    def generate_json_dict(self):
+        return {"Frames": [{spot.id: spot.to_dict() for spot in frame} for frame in self.frames]}
+
     def save_as_json(self, json_path=None):
         if json_path is None:
             json_path = self.xml_path.parent.joinpath(self.xml_path.stem + ".json")
-        json_dict = {"Frames": [{spot.id: spot.to_dict() for spot in frame} for frame in self.frames]}
+        json_dict = self.generate_json_dict()
         json.dump(json_dict, open(str(json_path), "w"), sort_keys=True, indent=4)
 
 
