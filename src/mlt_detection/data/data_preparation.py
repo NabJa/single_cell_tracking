@@ -223,7 +223,9 @@ def _path(x):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(usage="All arguments are optional."
+    parser = argparse.ArgumentParser(usage="Script transforms data into pairs of images with"
+                                           "corresponding probability maps."
+                                           "All arguments are optional."
                                            "Combinations may be required depending on input format."
                                            "For single tfrecord use: --tfrecord path"
                                            "For data as in --struct, use: --data path --pattern patter.tfrecord")

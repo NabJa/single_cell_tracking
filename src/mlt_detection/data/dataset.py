@@ -143,7 +143,8 @@ class TFDataset:
         }
 
         parsed_features = tf.io.parse_single_example(example_proto, image_feature_description)
-        prob_map = tf.image.decode_png(parsed_features["map/encoded"], channels=1, dtype=tf.float16, name="prob_map")
+        # TODO support floating points number in prob_map dtype
+        prob_map = tf.image.decode_png(parsed_features["map/encoded"], channels=1, dtype=tf.uint8, name="prob_map")
         image = tf.image.decode_png(parsed_features['image/encoded'], channels=3, dtype=tf.uint8, name="image")
         return image, prob_map
 
