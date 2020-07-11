@@ -8,14 +8,6 @@ import json
 from src.track_mate.track_mate_xml import TrackMateXML
 
 
-def encode_spot_name(name):
-    return "".join([str(ord(i)) for i in name])
-
-
-def decode_spot_name(name):
-    return "".join([chr(int(name[i: i + 2])) for i in range(0, len(name), 2)])
-
-
 class JSONTracks:
     """Parse tracking JSON and give functionality for evaluation metric computation."""
 
