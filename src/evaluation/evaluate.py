@@ -11,9 +11,9 @@ import motmetrics as mm
 from src.evaluation.json_data import JSONTracks
 
 
-def evaluate(objects, hypothesis):
+def evaluate(objects, hypothesis, verbose=True):
     obj_json = JSONTracks(objects, from_xml=(objects.suffix == ".xml"))
-    hyp_json = JSONTracks(objects, from_xml=(hypothesis.suffix == ".xml"))
+    hyp_json = JSONTracks(hypothesis, from_xml=(hypothesis.suffix == ".xml"))
 
     assert obj_json.nframes == hyp_json.nframes, \
         f"Objects (nframes={obj_json.nframes}) and Hypothesis (nframes={hyp_json.nframes}) " \
@@ -22,13 +22,15 @@ def evaluate(objects, hypothesis):
     acc = mm.MOTAccumulator(auto_id=True)
 
     for i in range(obj_json.nframes):
-        print(f"\rAccumulatating annotations {i + 1}/{obj_json.nframes}.", end="")
+        if verbose:
+            print(f"\rAccumulatating annotations {i + 1}/{obj_json.nframes}.", end="")
         gt_coords, gt_ids = obj_json.get_frame_coordinates(i), obj_json.get_frame_ids(i)
         hy_coords, hy_ids = hyp_json.get_frame_coordinates(i), hyp_json.get_frame_ids(i)
-        dis = mm.distances.norm2squared_matrix(gt_coords, hy_coords)
+        dis = mm.distances.norm2squared_matrix(gt_coords, hy_coords, 15)
         acc.update(gt_ids, hy_ids, dis)
 
-    print("\nComputing metrics...")
+    if verbose:
+        print("\nComputing metrics...")
     mh = mm.metrics.create()
     summary = mh.compute_many([acc],
                               metrics=mm.metrics.motchallenge_metrics,
@@ -37,7 +39,9 @@ def evaluate(objects, hypothesis):
                                        formatters=mh.formatters,
                                        namemap=mm.io.motchallenge_metric_names)
 
-    print(50*"#" + "\n" + str_summary + "\n" + 50*"#")
+    if verbose:
+        print(50*"#" + "\n" + str_summary + "\n" + 50*"#")
+    return summary
 
 
 def _file_format_path(x):
@@ -55,4 +59,4 @@ if __name__ == '__main__':
     parser.add_argument("-hyp", required=True, type=_file_format_path, help="Predicted tracks (= hypothesis).")
     args = parser.parse_args()
 
-    evaluate(args.obj, args.hyp)
+    _ = evaluate(args.obj, args.hyp)

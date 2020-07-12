@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 import matplotlib.patches as patches
 import cv2
 
+
 def plot_bboxes_on_image(image, *bbox_instances, bbox_format="xy1xy2", labels=None, title=""):
     """
     Plot bounding boxes on image.

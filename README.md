@@ -6,4 +6,4 @@ To be implemented:
 * [x]  Faster R-CNN model loading, inference
 * [ ]  MLT tracking
 * [ ]  TrackMate integration
-* [ ]  Benchmarking of tracking methods
+* [x]  Benchmarking of tracking methods
