@@ -10,6 +10,7 @@ import xmltodict
 import cv2
 
 from src.tf_detection_api import detection_utils
+from src.utils.bbox_utils import boxes_to_center_points
 
 
 def prepare_template_xml(image_path, template_path="Template.xml"):
@@ -62,7 +63,7 @@ def predictions_to_xml(image_path, predout, xmlout, min_score=0.5):
         detection_boxes = detection_boxes[detection_score >= min_score]
         detection_score = detection_score[detection_score >= min_score]
 
-        points = bboxes_to_points(detection_boxes)
+        points = boxes_to_center_points(detection_boxes)
 
         for cell_no, (point, score) in enumerate(zip(points, detection_score)):
             add_cell(doc, cell_id=f"{img_no:05d}{cell_no:05d}",
@@ -74,25 +75,6 @@ def predictions_to_xml(image_path, predout, xmlout, min_score=0.5):
 
     with open(str(xmlout), 'w') as result_file:
         result_file.write(xmltodict.unparse(doc, pretty=True))
-
-
-def bboxes_to_points(bboxes):
-    """
-    Takes bboxes in [ymin, xmin, ymax, xmax] format and transorms them to points in [x, y] format.
-
-    :bboxes: [N, (ymin, xmin, ymax, xmax)] array of bboxes
-    """
-    ymins, xmins = bboxes[:, 0], bboxes[:, 1]
-    ymaxs, xmaxs = bboxes[:, 2], bboxes[:, 3]
-
-    widths = (xmaxs - xmins) / 2
-    heights = (ymaxs - ymins) / 2
-
-    x_coords = xmins+widths
-    y_coords = ymins+heights
-
-    points = np.stack((x_coords, y_coords), axis=-1)
-    return points
 
 
 def add_cell(xml, cell_id="", name="", position_x="", position_y="", frame=0, radius=15, quality=1):
@@ -171,6 +153,8 @@ if __name__ == "__main__":
     parser.add_argument("--image_dir", "-i", required=True, type=_dir_path)
     parser.add_argument("--model_dir", "-m", required=True, type=_dir_path)
     parser.add_argument("--output_dir", "-o", required=True, type=lambda x: Path(x))
+    parser.add_argument("--min_score", "-s", type=float, default=0.5,
+                        help="OPTIONAL Min detection score. DEFAULT=0.5")
     args = parser.parse_args()
 
     if not args.output_dir.is_dir():
@@ -179,7 +163,7 @@ if __name__ == "__main__":
 
     # If predictions do not exist, predict.
     if not args.output_dir.joinpath("predictions.p").is_file():
-        detection_utils.save_predictions(args.image_dir, args.output_dir, args.model_dir, verbose=1)
+        detection_utils.save_predictions(args.image_dir, args.output_dir, args    .model_dir, verbose=1)
 
-    xml_out_name = args.output_dir/"trackmate.xml"
-    predictions_to_xml(str(args.image_dir), args.output_dir/"predictions.p", str(xml_out_name))
+    xml_out_name = args.output_dir/"spots.xml"
+    predictions_to_xml(str(args.image_dir), args.output_dir/"predictions.p", str(xml_out_name), args.min_score)
