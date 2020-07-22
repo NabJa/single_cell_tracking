@@ -7,9 +7,10 @@ import argparse
 import cv2
 from pathlib import Path
 import numpy as np
+import pandas as pd
 from src.tf_detection_api.detection_utils import tf_dataset_generator
 from src.utils.bbox_utils import boxes_to_center_points
-
+from src.mlt_detection.data.tfrecord_generation import write_detection_record
 
 ANNOTATION_FOLDER_STRUCTURE = """
 main_path
@@ -201,6 +202,21 @@ def transform_all_annotations(main_path, pattern, output):
                 np.save(str(crop_path/"coordinates.npy"), co)
 
 
+def transform_annotations_simple(images, positions, output):
+    """Takes images and positions and saves ecery crop in a folder in output path."""
+    for img, pos in zip(images.iterdir(), positions.iterdir()):
+        date, cell_line, *_ = img.name.split("_")
+        image = cv2.imread(str(img), cv2.IMREAD_UNCHANGED)
+        position = pd.read_csv(str(pos))
+        coords = np.moveaxis(np.array([position["X"], position["Y"]]), 0, -1)
+        crops, crop_positions = crop_image_with_positions(image, coords, crop_shape=(224, 224))
+        for i, (crop, crop_pos) in enumerate(zip(crops, crop_positions)):
+            annot_path = output/f"{date}_{cell_line}"/f"{img.stem}_{i}"
+            annot_path.mkdir(exist_ok=True, parents=True)
+            cv2.imwrite(str(annot_path/"image.png"), crop)
+            np.save(annot_path/"coordinates.npy", crop_pos)
+
+
 def _file_path(x):
     x = Path(x)
     if not x.is_file():
@@ -232,9 +248,13 @@ if __name__ == '__main__':
 
     parser.add_argument("-t", "--tf_record", type=_file_path,
                         help="tf_record file containing the fields: image, bboxes")
-    parser.add_argument("-d", "--data", type=_dir_path,
+    parser.add_argument("-d", "--struct_data", type=_dir_path,
                         help=f"Dataset with dataset structure as described in ANNOTATION_FOLDER_STRUCTURE. Call "
                              f"--struct for description.")
+    parser.add_argument("-img", "--images", type=_dir_path,
+                        help=f"Path to image folder. Images must be png.")
+    parser.add_argument("-pos", "--positions", type=_dir_path,
+                        help=f"Path to folder contaiing positions in csv files.")
     parser.add_argument("-p", "--pattern", type=str,
                         help="Glob pattern of data data to search for (e.g. lensfree.tfrecord).")
     parser.add_argument("-o", "--output", type=_dir_path,
@@ -250,10 +270,13 @@ if __name__ == '__main__':
     elif args.tf_record is not None:
         transform_annotation(args.tf_record, args.output)
         exit()
-    elif args.data is not None:
+    elif args.struct_data is not None:
         if args.pattern is None:
             raise ValueError("Pattern required! ")
-        transform_all_annotations(args.data, args.pattern, args.output)
+        transform_all_annotations(args.struct_data, args.pattern, args.output)
         exit()
+    elif (args.images is not None) and (args.positions is not None):
+        transform_annotations_simple(args.images, args.positions, args.output)
     else:
-        raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record")
+        raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record or"
+                         " --images and --positions.")
