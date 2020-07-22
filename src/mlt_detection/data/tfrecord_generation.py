@@ -18,10 +18,10 @@ def object_detection_record_from_resnet_data(inp, out=None, ignore=None):
     print(f"Collecting data. Ignoring: {ignore} ...")
     if ignore is None:
         coord_path = [x for x in inp.rglob("coordinates.npy")]
-        img_path = [x for x in inp.rglob("image.tif")]
+        img_path = [x for x in inp.rglob("image.png")]
     else:
         coord_path = [x for x in inp.rglob("coordinates.npy") if len(set(ignore).intersection(set(x.parts))) < 1]
-        img_path = [x for x in inp.rglob("image.tif") if len(set(ignore).intersection(set(x.parts))) < 1]
+        img_path = [x for x in inp.rglob("image.png") if len(set(ignore).intersection(set(x.parts))) < 1]
 
     coords = [np.load(c) for c in coord_path]
     bboxes = [np.array([bu.point_to_box(p, 40, img_shape=(224, 224)) for p in points]) for points in coords]
@@ -195,4 +195,10 @@ if __name__ == '__main__':
                                                     "e.g. --ignore nrk_experiment a549_experiment")
     args = parser.parse_args()
 
-    image_pair_record_from_resnet_data(args.input, args.output, args.ignore)
+    # image_pair_record_from_resnet_data(args.input, args.output, args.ignore)
+    main = Path(args.input)
+
+    dirs = [x for x in main.iterdir()]
+    for d in dirs:
+        object_detection_record_from_resnet_data(d, out=d.parent/f"{d.stem}.tfrecord")
+
