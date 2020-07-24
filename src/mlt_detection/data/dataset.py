@@ -99,6 +99,8 @@ class Dataset:
             val_ids = np.random.choice(list(range(self.len_images)), number_of_val_images, replace=False)
         elif type(self.val_split) is str:
             val_ids = [i for i, img in enumerate(self.images) if self.val_split in img.parts]
+        elif type(self.val_split) is list:
+            val_ids = [i for i, img in enumerate(self.images) for val in self.val_split if val in img.parts]
         else:
             raise ValueError(f"Invalid val_split type. Expected flaot or str. Given: {type(self.val_split)}")
         train_ids = list(set(ids) - set(val_ids))
@@ -108,6 +110,12 @@ class Dataset:
         self.val_prob_maps = self.prob_maps[val_ids]
         self.train_ids = train_ids
         self.val_ids = val_ids
+
+        if len(train_ids) == 0:
+            print("WARNING: no train ID's found.")
+        if len(val_ids) == 0:
+            print("WARNING: no validation ID's found.")
+
         return train_ids, val_ids
 
 
@@ -139,14 +147,15 @@ class TFDataset:
             'image/filename': tf.io.FixedLenFeature([], tf.string),
             'image/encoded': tf.io.FixedLenFeature([], tf.string),
             'map/filename': tf.io.FixedLenFeature([], tf.string),
-            'map/encoded': tf.io.FixedLenFeature([], tf.string),
+            'map': tf.io.FixedLenFeature([], tf.float32),
+            'map/shape': tf.io.FixedLenFeature([2], tf.int64)
         }
 
         parsed_features = tf.io.parse_single_example(example_proto, image_feature_description)
         # TODO support floating points number in prob_map dtype
-        prob_map = tf.image.decode_png(parsed_features["map/encoded"], channels=1, dtype=tf.uint8, name="prob_map")
+        # prob_map = tf.reshape(parsed_features["map/"], parsed_features["map/shape"])
         image = tf.image.decode_png(parsed_features['image/encoded'], channels=3, dtype=tf.uint8, name="image")
-        return image, prob_map
+        return image, parsed_features["map"]
 
     def _create_data(self):
         dataset = tf.data.TFRecordDataset(self.records)
@@ -155,8 +164,3 @@ class TFDataset:
         dataset = dataset.shuffle(1000)
         dataset = dataset.take(self.batch_size)
         self.data = dataset
-
-
-path = Path(r"D:\Nabil_object_detection\data\resnet23_data\lensfree\nrk_experiment\resnet_data.tfrecord")
-data = TFDataset(path)
-

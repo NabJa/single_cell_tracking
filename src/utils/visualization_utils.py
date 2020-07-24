@@ -93,7 +93,7 @@ def plot_spots_on_video(frame_annotation, image_dir):
     :return: Generator yielding annotated images.
     """
     image_dir = Path(image_dir)
-    image_paths = list(image_dir.iterdir())
+    image_paths = list(image_dir.glob("*.png"))
 
     assert len(frame_annotation) == len(image_paths), \
         f"Unequal number of annotations ({len(frame_annotation)}) and images ({len(image_paths)})"

@@ -217,6 +217,14 @@ def transform_annotations_simple(images, positions, output):
             np.save(annot_path/"coordinates.npy", crop_pos)
 
 
+def make_all_crops_to_pmaps(dir_path):
+    for img_path in dir_path.rglob("image.png"):
+        coords = np.load(str(img_path.parent.joinpath("coordinates.npy")))
+        img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+        img = generate_gaussian_mask(np.zeros_like(img, dtype=np.float32), coords)
+        cv2.imwrite(str(img_path.parent.joinpath("prob_map.tif")), img)
+
+
 def _file_path(x):
     x = Path(x)
     if not x.is_file():
@@ -241,10 +249,10 @@ def _path(x):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(usage="Script transforms data into pairs of images with"
                                            "corresponding probability maps."
-                                           "All arguments are optional."
-                                           "Combinations may be required depending on input format."
-                                           "For single tfrecord use: --tfrecord path"
-                                           "For data as in --struct, use: --data path --pattern patter.tfrecord")
+                                           " All arguments are optional."
+                                           " Combinations may be required depending on input format."
+                                           " For single tfrecord use: --tfrecord path."
+                                           " For data as in --struct, use: --data path --pattern patter.tfrecord")
 
     parser.add_argument("-t", "--tf_record", type=_file_path,
                         help="tf_record file containing the fields: image, bboxes")
@@ -254,9 +262,11 @@ if __name__ == '__main__':
     parser.add_argument("-img", "--images", type=_dir_path,
                         help=f"Path to image folder. Images must be png.")
     parser.add_argument("-pos", "--positions", type=_dir_path,
-                        help=f"Path to folder contaiing positions in csv files.")
+                        help=f"Path to folder containing positions in csv files.")
     parser.add_argument("-p", "--pattern", type=str,
                         help="Glob pattern of data data to search for (e.g. lensfree.tfrecord).")
+    parser.add_argument("-c2p", "--crops_to_pmap", type=_dir_path,
+                        help="Given this directory, transform all crops to probability maps.")
     parser.add_argument("-o", "--output", type=_dir_path,
                         help="Output path")
     parser.add_argument("--struct", action='store_true')
@@ -277,6 +287,8 @@ if __name__ == '__main__':
         exit()
     elif (args.images is not None) and (args.positions is not None):
         transform_annotations_simple(args.images, args.positions, args.output)
+    elif args.crops_to_pmap is not None:
+        make_all_crops_to_pmaps(args.crops_to_pmap)
     else:
         raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record or"
                          " --images and --positions.")
