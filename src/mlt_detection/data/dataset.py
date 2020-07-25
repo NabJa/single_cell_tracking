@@ -54,33 +54,33 @@ class Dataset:
         # TODO add augmentation
         assert (self.train_images is not None) and (self.train_prob_maps is not None), \
             "No training data found. Split dataset before generating training data."
-
-        images, pmaps = [], []
-        for img, pm in zip(self.train_images, self.train_prob_maps):
-            image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
-            if len(image.shape) == 2:
-                image = np.repeat(image[..., np.newaxis], 3, axis=2)  # Input must be of shape (None, W, H, 3)
-            images.append(image)
-            pmaps.append(pmap[..., np.newaxis])  # Target must be of shape (None, W, H, 1)
-            if (len(images) == batch_size) and (len(pmaps) == batch_size):
-                yield np.array(images), np.array(pmaps)
-                images, pmaps = [], []
+        while True:
+            images, pmaps = [], []
+            for img, pm in zip(self.train_images, self.train_prob_maps):
+                image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
+                if len(image.shape) == 2:
+                    image = np.repeat(image[..., np.newaxis], 3, axis=2)  # Input must be of shape (None, W, H, 3)
+                images.append(image)
+                pmaps.append(pmap[..., np.newaxis])  # Target must be of shape (None, W, H, 1)
+                if (len(images) == batch_size) and (len(pmaps) == batch_size):
+                    yield np.array(images), np.array(pmaps)
+                    images, pmaps = [], []
 
     def generate_val_data(self, batch_size=1):
         """Data generator on validation data."""
         assert (self.val_images is not None) and (self.val_prob_maps is not None), \
             "No validation data found. Split dataset before generating validation data."
-
-        images, pmaps = [], []
-        for img, pm in zip(self.val_images, self.val_prob_maps):
-            image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
-            if len(image.shape) == 2:
-                image = np.repeat(image[..., np.newaxis], 3, axis=2)
-            images.append(image)
-            pmaps.append(pmap[..., np.newaxis])
-            if (len(images) == batch_size) and (len(pmaps) == batch_size):
-                yield np.array(images), np.array(pmaps)
-                images, pmaps = [], []
+        while True:
+            images, pmaps = [], []
+            for img, pm in zip(self.val_images, self.val_prob_maps):
+                image, pmap = cv2.imread(str(img), -1), cv2.imread(str(pm), -1)
+                if len(image.shape) == 2:
+                    image = np.repeat(image[..., np.newaxis], 3, axis=2)
+                images.append(image)
+                pmaps.append(pmap[..., np.newaxis])
+                if (len(images) == batch_size) and (len(pmaps) == batch_size):
+                    yield np.array(images), np.array(pmaps)
+                    images, pmaps = [], []
 
     def split_data(self, val_split):
         """
