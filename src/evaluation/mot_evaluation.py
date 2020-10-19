@@ -25,12 +25,8 @@ def compute_assignment(cost_matrix, munkres):
     """
     cost_matrix = np.array(cost_matrix)
 
-    if np.any((cost_matrix != -1) & (cost_matrix < 0)):
-        raise ValueError("cost_matrix can't contain negative values except -1!")
-
-    # Assign max value to all values == -1
-    max_value = np.max(cost_matrix) * 1e6
-    cost_matrix = np.where(cost_matrix == -1, max_value, cost_matrix).astype(cost_matrix.dtype)
+    if np.any(cost_matrix < 0):
+        raise ValueError("cost_matrix contains negative values!")
 
     # Munkres only handles square and rectangular matrices. It does *not* handle irregular matrices!
     # As a workaround the matrix is transposed and corresponding pairs are flipped.
@@ -76,6 +72,8 @@ class MOTEvaluator:
         self.munkres_max = sys.maxsize
         self.munkres = Munkres()
         self.mapping = []
+        self.mapping_hy_to_gt = []
+        self.mapping_gt_to_hy = []
         self.mismatches = 0
         self.mismatches1 = 0
         self.mismatches2 = 0
@@ -101,28 +99,32 @@ class MOTEvaluator:
             false_negatives = len(gt_coords) - len(matches)
             false_positives = len(hy_coords) - len(matches)
 
-            # Step 3: Map tracks
+            # Step 3: Map tracks and find track mismatches
+            hy_source = hy_source[hy_assignments[matches]].astype(np.str)
+            gt_source = gt_source[gt_assignments[matches]].astype(np.str)
+            self.count_mismatches(hy_source, gt_source, (hy_frame, gt_frame))
+
             hy_matches = hy_id[hy_assignments[matches]]
             gt_matches = gt_id[gt_assignments[matches]]
-            self.mapping.append(dict(list(zip(hy_matches, gt_matches))))
+            self.mapping_gt_to_hy.append(dict(list(zip(gt_matches, hy_matches))))
+            self.mapping_hy_to_gt.append(dict(list(zip(hy_matches, gt_matches))))
 
-            # Step 4: Find track mismatches
-            hy_valid_source = hy_source[hy_assignments[matches]]
-            gt_valid_source = gt_source[gt_assignments[matches]]
+    def count_mismatches(self, hy_source, gt_source, frame):
+        """Compute missmatches. If sources dont map previously mapped ID's => mismatch"""
 
-            if len(self.mapping) > 1:
-                previous_mapping = self.mapping[-2]
+        if len(self.mapping_hy_to_gt) + len(self.mapping_gt_to_hy) < 2:
+            return 0
 
-                for hy_s, gt_s in zip(hy_valid_source, gt_valid_source):
-                    if (hy_s is None) or (gt_s is None):
-                        self.mismatches1 += 1
-                        continue
-                    gt_mapped = previous_mapping.get(hy_s)
-                    if gt_mapped != gt_s:
-                        aa = type(gt_mapped)
-                        aaa = type(gt_s)
-                        aaaa = gt_mapped != gt_s
-                        self.mismatches2 += 1
+        for hy_s, gt_s in zip(hy_source, gt_source):
+
+
+            gt_parent = self.mapping_hy_to_gt[-1].get(hy_s)
+            hy_parent = self.mapping_gt_to_hy[-1].get(gt_s)
+
+            if (str(gt_parent) != str(gt_s)) or (str(hy_parent) != str(hy_s)):
+                a = hy_s in self.mapping_hy_to_gt
+                b = gt_s in self.mapping_gt_to_hy
+                self.mismatches += 1
 
 
 class JSONTracks:
@@ -166,7 +168,7 @@ class JSONTracks:
         self.annotations = annotations
 
 
-debug_eval = MOTEvaluator(r"D:\trackmate_to_json\tracks.json", r"D:\trackmate_to_json\tracks.json", 50)
+debug_eval = MOTEvaluator("/home/nabil/projects/single_cell_tracking/tracks.json",
+                          "/home/nabil/projects/single_cell_tracking/tracks.json", 50)
 debug_eval.evaluate()
-print("MM1", debug_eval.mismatches1)
-print("MM2", debug_eval.mismatches2)
+print("MM", debug_eval.mismatches)
