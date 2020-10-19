@@ -173,6 +173,10 @@ class ResNet23:
                                         validation_data=val,
                                         **kwargs)
 
+    def save_model(self, path):
+        # TODO handle bad paths
+        self.model.save(path)
+
     def predict(self, img, **kwargs):
         """Transform image img and predict."""
         if len(img.shape) == 2:

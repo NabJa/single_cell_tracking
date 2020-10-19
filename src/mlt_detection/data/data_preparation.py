@@ -7,9 +7,10 @@ import argparse
 import cv2
 from pathlib import Path
 import numpy as np
+import pandas as pd
 from src.tf_detection_api.detection_utils import tf_dataset_generator
 from src.utils.bbox_utils import boxes_to_center_points
-
+from src.mlt_detection.data.tfrecord_generation import write_detection_record
 
 ANNOTATION_FOLDER_STRUCTURE = """
 main_path
@@ -97,15 +98,17 @@ def record_to_probability_map(record, sigma=8, kernel_size=30, crop_shape=None):
         prob_map = np.zeros_like(img, dtype=np.float32)
         prob_map = generate_gaussian_mask(prob_map, img_cords, sigma=sigma, kernel_size=kernel_size)
 
-        pm_crops, coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
         crops, _ = crop_image_with_positions(img, img_cords, crop_shape)
-        yield img, img_cords, prob_map, crops, pm_crops, coords
+        pm_crops, crop_coords = crop_image_with_positions(prob_map, img_cords, crop_shape)
+
+        yield img, img_cords, prob_map, crops, pm_crops, crop_coords
 
 
 def crop_image_with_positions(img, pos, crop_shape):
-    """Crop image into max numver of crops crop_shape and recalculate positions pos"""
+    """Crop image into max number of crops crop_shape and recalculate positions (in xy format) pos"""
     ch, cw = (crop_shape, crop_shape) if type(crop_shape) is int else crop_shape
     ih, iw = img.shape
+    pos = pos[:, ::-1]  # xy-cordinates to yx coordinates
 
     rows = iw // cw
     cols = ih // ch
@@ -199,6 +202,29 @@ def transform_all_annotations(main_path, pattern, output):
                 np.save(str(crop_path/"coordinates.npy"), co)
 
 
+def transform_annotations_simple(images, positions, output):
+    """Takes images and positions and saves ecery crop in a folder in output path."""
+    for img, pos in zip(images.iterdir(), positions.iterdir()):
+        date, cell_line, *_ = img.name.split("_")
+        image = cv2.imread(str(img), cv2.IMREAD_UNCHANGED)
+        position = pd.read_csv(str(pos))
+        coords = np.moveaxis(np.array([position["X"], position["Y"]]), 0, -1)
+        crops, crop_positions = crop_image_with_positions(image, coords, crop_shape=(224, 224))
+        for i, (crop, crop_pos) in enumerate(zip(crops, crop_positions)):
+            annot_path = output/f"{date}_{cell_line}"/f"{img.stem}_{i}"
+            annot_path.mkdir(exist_ok=True, parents=True)
+            cv2.imwrite(str(annot_path/"image.png"), crop)
+            np.save(annot_path/"coordinates.npy", crop_pos)
+
+
+def make_all_crops_to_pmaps(dir_path):
+    for img_path in dir_path.rglob("image.png"):
+        coords = np.load(str(img_path.parent.joinpath("coordinates.npy")))
+        img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+        img = generate_gaussian_mask(np.zeros_like(img, dtype=np.float32), coords)
+        cv2.imwrite(str(img_path.parent.joinpath("prob_map.tif")), img)
+
+
 def _file_path(x):
     x = Path(x)
     if not x.is_file():
@@ -221,17 +247,26 @@ def _path(x):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # TODO support other formats as input
-    # parser.add_argument("-i", "--image_path", type=_path)
-    # parser.add_argument("-c", "--coordinates", type=_path)
+    parser = argparse.ArgumentParser(usage="Script transforms data into pairs of images with"
+                                           "corresponding probability maps."
+                                           " All arguments are optional."
+                                           " Combinations may be required depending on input format."
+                                           " For single tfrecord use: --tfrecord path."
+                                           " For data as in --struct, use: --data path --pattern patter.tfrecord")
+
     parser.add_argument("-t", "--tf_record", type=_file_path,
                         help="tf_record file containing the fields: image, bboxes")
-    parser.add_argument("-d", "--data", type=_dir_path,
+    parser.add_argument("-d", "--struct_data", type=_dir_path,
                         help=f"Dataset with dataset structure as described in ANNOTATION_FOLDER_STRUCTURE. Call "
                              f"--struct for description.")
+    parser.add_argument("-img", "--images", type=_dir_path,
+                        help=f"Path to image folder. Images must be png.")
+    parser.add_argument("-pos", "--positions", type=_dir_path,
+                        help=f"Path to folder containing positions in csv files.")
     parser.add_argument("-p", "--pattern", type=str,
                         help="Glob pattern of data data to search for (e.g. lensfree.tfrecord).")
+    parser.add_argument("-c2p", "--crops_to_pmap", type=_dir_path,
+                        help="Given this directory, transform all crops to probability maps.")
     parser.add_argument("-o", "--output", type=_dir_path,
                         help="Output path")
     parser.add_argument("--struct", action='store_true')
@@ -245,10 +280,15 @@ if __name__ == '__main__':
     elif args.tf_record is not None:
         transform_annotation(args.tf_record, args.output)
         exit()
-    elif args.data is not None:
+    elif args.struct_data is not None:
         if args.pattern is None:
             raise ValueError("Pattern required! ")
-        transform_all_annotations(args.data, args.pattern, args.output)
+        transform_all_annotations(args.struct_data, args.pattern, args.output)
         exit()
+    elif (args.images is not None) and (args.positions is not None):
+        transform_annotations_simple(args.images, args.positions, args.output)
+    elif args.crops_to_pmap is not None:
+        make_all_crops_to_pmaps(args.crops_to_pmap)
     else:
-        raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record")
+        raise ValueError("No valid Arguments given. Requieres one of the following arguments: --data, --tf_record or"
+                         " --images and --positions.")

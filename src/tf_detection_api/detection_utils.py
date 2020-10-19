@@ -22,7 +22,7 @@ def save_predictions(image_dir, out_dir, model_dir, verbose=False):
     predictions = {}
     for i, prediction in enumerate(generator):
         if verbose:
-            logging.info(f"Predicting on image {i}/{len(image_paths)}: {image_paths[i]}")
+            print(f"Predicting on image {i}/{len(image_paths)}: {image_paths[i]}")
         predictions[prediction["image_dir"]] = {
             "detection_boxes": prediction["detection_boxes"],
             "detection_scores": prediction["detection_scores"],
@@ -37,15 +37,10 @@ def prediction_generator(image_paths, model):
     """Yield prediction for every image in image_dir."""
     index = 0
     while index < len(image_paths):
-        image = cv2.imread(str(image_paths[index]), 1)
+        image = cv2.imread(str(image_paths[index]), cv2.IMREAD_UNCHANGED)
         prediction = run_inference_for_single_image(model, image)
 
-        detected_boxes = prediction["detection_boxes"]
-
         # Transform bboxes to image coordinates. Prediction is in yx1yx2 format.
-        img_height, img_width, *_ = image.shape
-        shape_matrix = np.array([img_height, img_width, img_height, img_width])
-        prediction["detection_boxes"] = detected_boxes * shape_matrix
         prediction["image_dir"] = image_paths[index]
 
         index += 1

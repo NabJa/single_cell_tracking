@@ -2,9 +2,11 @@
 Visualization utils.
 """
 
+from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import matplotlib.patches as patches
+import cv2
 
 
 def plot_bboxes_on_image(image, *bbox_instances, bbox_format="xy1xy2", labels=None, title=""):
@@ -80,3 +82,44 @@ def parse_bbox(bbox, bbox_format, res_format="xywh"):
         return ymin, xmin, ymax, xmax
     else:
         raise NotImplementedError(f"{res_format} not supported.")
+
+
+def plot_spots_on_video(frame_annotation, image_dir):
+    """
+    Create generator to to yield TrackMate annotation visualized on all images in image_dir.
+
+    :param frame_annotation: JSONTracks object (can be found in src.evaluation.mot_evaluation).
+    :param image_dir: Path to folder containing images.
+    :return: Generator yielding annotated images.
+    """
+    image_dir = Path(image_dir)
+    image_paths = list(image_dir.glob("*.png"))
+
+    assert len(frame_annotation) == len(image_paths), \
+        f"Unequal number of annotations ({len(frame_annotation)}) and images ({len(image_paths)})"
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.7
+    font_thickness = 2
+    font_color = (255, 0, 0)  # BGR
+
+    for annotation, image_path in zip(frame_annotation, image_paths):
+
+        image = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
+        for spot_id, spot_annot in annotation.items():
+            pos = int(spot_annot["x"]), int(spot_annot["y"])
+            image = cv2.putText(image, str(spot_id), pos, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+            image = cv2.circle(image, pos, 5, font_color, -1)
+            image = cv2.circle(image, pos, 5, (0, 0, 0), 1)  # Black edge around circle
+
+        yield image
+
+
+def write_video_from_generator(generator, output, fps=5):
+    image = next(generator)
+    height, width, *_ = image.shape
+    video = cv2.VideoWriter(output, cv2.VideoWriter_fourcc(*"XVID"), fps, (width, height))
+    video.write(image)
+    for image in generator:
+        video.write(image)
+    video.release()
