@@ -1,10 +1,10 @@
 # Single Cell Tracking
 
-This repository aims to use TrackMate and MLT to track single cell with given detections.
-The following features will implemented:
+This repository aims to use Fiji - TrackMate to track single cells with given cell localisations.
+The following features will be implemented:
 
 * [x]  SSD and Faster R-CNN loading [here](tf_detection_api/detection_utils.py)
-* [x]  ResNet23 model [here](src/mlt_detection/resnet23.py) (Reimplementation of *"Cell lineage tracing in lens-free microscopy videos." Rempfler, Markus, et al. 2017*)
+* [x]  ResNet23 model [here](src/mlt_detection/resnet23.py) 
 * [x]  TrackMate integration [here](src/track_mate/generate_xml.py)
 * [x]  Benchmarking of tracking methods [here](src/evaluation/evaluate.py)
 * [ ]  MLT tracking
